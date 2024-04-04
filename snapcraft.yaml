@@ -1,0 +1,94 @@
+name: pingus-lemmings
+base: core22
+adopt-info: main
+summary:  Pingus is a free Lemmingstm-like puzzle game
+description: |
+    Pingus is a free Lemmingstm-like puzzle game covered under the GNU GPL. It features currently 77 playable levels
+
+grade: stable
+confinement: strict
+architectures:
+    - build-on:  armhf
+    - build-on:  arm64
+    - build-on:  amd64
+
+apps:
+  pingus-lemmings:
+    command: opt/pingus/pingus.sh
+    plugs: [x11, desktop, audio-playback, opengl ]
+    extensions: [ gnome ]
+
+parts:
+  main:
+    after: [boost]
+    plugin: dump
+    source: .
+    override-pull: |
+         set -e
+         version=$(curl -s "https://api.github.com/repos/Pingus/pingus/tags" | jq -r '.[0].name')
+         wget -O pingus.tar.bz2 "https://github.com/Pingus/downloads/blob/master/pingus-0.7.6.tar.bz2?raw=true"
+         tar xvf pingus.tar.bz2
+    override-build: |
+         set -e
+         version=$(curl -s "https://api.github.com/repos/Pingus/pingus/tags" | jq -r '.[0].name')
+         cd pingus-${version#v}
+         mkdir -p build
+         sed -i -E 's/print[[:space:]]+(.*)/print(\1)/g' SConscript
+         file="src/pingus/screens/demo_session.cpp"
+         if ! grep -q '#include <functional>' "$file"; then
+           awk '/#include <iostream>/ && !added { print; print "#include <functional>"; added=1; next }1' "$file" > temp_file && mv temp_file "$file"
+         fi
+         scons -j$(nproc) src
+         scons -j$(nproc)
+         mkdir -p $CRAFT_PART_INSTALL/opt/pingus
+         cp -rf  build/* $CRAFT_PART_INSTALL/opt/pingus/
+         cp -rf  data $CRAFT_PART_INSTALL/opt/pingus/
+         echo "#!/bin/bash" >  $CRAFT_PART_INSTALL/opt/pingus/pingus.sh
+         echo "\$SNAP/opt/pingus/pingus "$@" -d /snap/pingus-lemmings/current/opt/pingus/data" >> $CRAFT_PART_INSTALL/opt/pingus/pingus.sh
+         chmod a+rx $CRAFT_PART_INSTALL/opt/pingus/pingus.sh
+         craftctl set version="${version#v}"
+    build-packages:
+       - curl
+       - wget
+       - unzip
+       - jq
+       - g++
+       - cmake
+       - libpng-dev
+       - libsdl-image1.2-dev
+       - libsdl-mixer1.2-dev
+       - libsdl1.2-dev
+       - scons
+    stage-packages:
+       - libpng16-16
+       - libsdl-image1.2
+       - libsdl-mixer1.2
+       - libsdl1.2debian
+
+  boost:
+    plugin: dump
+    source: .
+    override-pull: |
+         set -e
+         wget -O boost.tar.gz 'https://downloads.sourceforge.net/project/boost/boost/1.68.0/boost_1_68_0.tar.gz?ts=gAAAAABmDFchnkY1l5SYbhHgypTbuMugcNfnFBFKkGh63LBWWIa6sJj-p8tW8FDSnru4qN4x1OE64442ZlEmtYopX3IeqqJNaQ%3D%3D&r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fboost%2Ffiles%2Fboost%2F1.68.0%2Fboost_1_68_0.tar.gz%2Fdownload'
+         tar xf boost.tar.gz
+         craftctl default
+    override-build: |
+         set -e
+         cd boost_1_68_0
+         ./bootstrap.sh
+         ./b2
+         mkdir -p $SNAPCRAFT_PART_INSTALL/usr/lib
+
+         cp -r stage/lib/* $SNAPCRAFT_PART_INSTALL/usr/lib
+         cp -r boost $SNAPCRAFT_PART_INSTALL/usr/include/
+         cp -r stage/lib/* /usr/lib
+         cp -r boost /usr/include/
+
+    build-packages:
+       - g++
+       - wget
+
+#lint:
+#  ignore:
+#    - library

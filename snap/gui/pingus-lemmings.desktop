@@ -1,0 +1,9 @@
+[Desktop Entry]
+Encoding=UTF-8
+Version=0.0.10
+Type=Application
+Terminal=false
+Categories=Game
+Exec=pingus-lemmings
+Name=Pingus
+Icon=${SNAP}/meta/gui/pingus.png
