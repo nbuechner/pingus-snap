@@ -78,7 +78,7 @@ parts:
     override-build: |
          set -e
          cd boost_1_68_0
-         ./bootstrap.sh
+         ./bootstrap.sh --without-libraries=$(./bootstrap.sh --show-libraries |grep '\- ' | cut -d'-' -f2|grep -v signals | awk '{print $1}' | xargs printf "%s,")
          ./b2
          mkdir -p $SNAPCRAFT_PART_INSTALL/usr/lib
 
